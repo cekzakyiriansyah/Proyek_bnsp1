@@ -3,37 +3,41 @@ pipeline {
     
     environment {
         PROJECT_NAME = 'Proyek_bnsp1'
-        // Path deploy di Windows kamu (pakai quotes karena ada spasi)
-        DEPLOY_DIR = '"C:\\Users\\MyBook Hype AMD\\Documents\\SIB\\deployed-app"'
+        // Path di Linux container (bukan Windows)
+        DEPLOY_DIR = '/var/jenkins_home/deployed-app'
+        BUILD_INFO = 'build-info.txt'
     }
     
     stages {
         stage('Checkout') {
             steps {
                 echo '🔍 Checking out source code from GitHub...'
-                git branch: 'main', url: 'https://github.com/cekzakyiriansyah/Proyek_bnsp1.git'
+                // Git checkout sudah otomatis oleh SCM
                 
                 // Print working directory dan list files
-                bat 'echo Current directory: %CD%'
-                bat 'dir'
+                sh 'echo "Current directory: $(pwd)"'
+                sh 'ls -la'
             }
         }
         
         stage('Build') {
             steps {
                 echo '🏗️ Building application...'
-                bat """
+                sh """
                     echo "Building ${PROJECT_NAME}..."
-                    echo "Build started at: %DATE% %TIME%"
+                    echo "Build started at: $(date)"
                     echo "Files in repository:"
-                    dir /B
+                    ls -la
                 """
                 
                 // Create build info file
-                bat 'echo "Build Number: ${BUILD_NUMBER}" > build-info.txt'
-                bat 'echo "Build Date: %DATE% %TIME%" >> build-info.txt'
-                bat 'echo "Repository: https://github.com/cekzakyiriansyah/Proyek_bnsp1.git" >> build-info.txt'
-                bat 'echo "Built by: Jenkins CI/CD" >> build-info.txt'
+                sh """
+                    echo "Build Number: ${BUILD_NUMBER}" > ${BUILD_INFO}
+                    echo "Build Date: $(date)" >> ${BUILD_INFO}
+                    echo "Repository: https://github.com/cekzakyiriansyah/Proyek_bnsp1.git" >> ${BUILD_INFO}
+                    echo "Built by: Jenkins CI/CD" >> ${BUILD_INFO}
+                    echo "Node: $(uname -a)" >> ${BUILD_INFO}
+                """
             }
         }
         
@@ -41,32 +45,31 @@ pipeline {
             steps {
                 echo '🧪 Running validation tests...'
                 
-                script {
-                    // Test file existence - sesuaikan dengan file yang ada di repo kamu
-                    bat '''
-                        echo "Checking required files..."
-                        
-                        if exist index.html (
-                            echo "✅ index.html found"
-                        ) else (
-                            echo "❌ index.html missing" && exit 1
-                        )
-                        
-                        if exist style.css (
-                            echo "✅ style.css found" 
-                        ) else (
-                            echo "❌ style.css missing" && exit 1
-                        )
-                        
-                        if exist test.js (
-                            echo "✅ test.js found"
-                        ) else (
-                            echo "⚠️ test.js not found (optional)"
-                        )
-                        
-                        echo "All file checks completed" > test-results.txt
-                    '''
-                }
+                sh """
+                    echo "Checking required files..."
+                    
+                    if [ -f "index.html" ]; then
+                        echo "✅ index.html found"
+                    else
+                        echo "❌ index.html missing"
+                        exit 1
+                    fi
+                    
+                    if [ -f "style.css" ]; then
+                        echo "✅ style.css found"
+                    else
+                        echo "❌ style.css missing"
+                        exit 1
+                    fi
+                    
+                    if [ -f "test.js" ]; then
+                        echo "✅ test.js found"
+                    else
+                        echo "⚠️ test.js not found (optional)"
+                    fi
+                    
+                    echo "All file checks completed" > test-results.txt
+                """
             }
         }
         
@@ -75,25 +78,17 @@ pipeline {
                 echo '🚀 Deploying application...'
                 
                 // Create deploy directory
-                bat """
-                    if not exist ${DEPLOY_DIR} (
-                        mkdir ${DEPLOY_DIR}
-                    )
+                sh """
+                    mkdir -p ${DEPLOY_DIR}
+                    echo "Deployment directory created: ${DEPLOY_DIR}"
                 """
                 
-                // Copy semua file web ke deploy directory
-                bat """
+                // Copy files ke deploy directory
+                sh """
                     echo "Copying files to deployment directory..."
-                    robocopy . ${DEPLOY_DIR} *.html *.css *.js *.txt *.md /E /NFL /NDL
-                    
-                    if %ERRORLEVEL% LEQ 3 (
-                        echo "✅ Files copied successfully"
-                    ) else (
-                        echo "❌ File copy had issues" && exit 1
-                    )
-                    
-                    echo "Deployment completed: %DATE% %TIME%" > ${DEPLOY_DIR}\\deployment.log
-                    echo "Build: ${BUILD_NUMBER}" >> ${DEPLOY_DIR}\\deployment.log
+                    cp -r *.html *.css *.js *.txt ${DEPLOY_DIR}/ 2>/dev/null || true
+                    echo "Deployment completed: $(date)" > ${DEPLOY_DIR}/deployment.log
+                    echo "Build: ${BUILD_NUMBER}" >> ${DEPLOY_DIR}/deployment.log
                 """
                 
                 echo "✅ Application deployed to: ${DEPLOY_DIR}"
@@ -103,23 +98,25 @@ pipeline {
         stage('Verify') {
             steps {
                 echo '🔍 Verifying deployment...'
-                bat """
-                    echo "Checking deployed files:"
-                    dir ${DEPLOY_DIR}
+                sh """
+                    echo "Checking deployed files in: ${DEPLOY_DIR}"
+                    ls -la ${DEPLOY_DIR}/
                     
-                    if exist ${DEPLOY_DIR}\\index.html (
+                    if [ -f "${DEPLOY_DIR}/index.html" ]; then
                         echo "✅ index.html deployed successfully"
-                    ) else (
-                        echo "❌ index.html deployment failed" && exit 1
-                    )
+                    else
+                        echo "❌ index.html deployment failed"
+                        exit 1
+                    fi
                     
-                    if exist ${DEPLOY_DIR}\\style.css (
+                    if [ -f "${DEPLOY_DIR}/style.css" ]; then
                         echo "✅ style.css deployed successfully"
-                    ) else (
-                        echo "❌ style.css deployment failed" && exit 1
-                    )
+                    else
+                        echo "❌ style.css deployment failed"
+                        exit 1
+                    fi
                     
-                    echo "Deployment verification completed successfully" > ${DEPLOY_DIR}\\verification.txt
+                    echo "Deployment verification completed successfully" > ${DEPLOY_DIR}/verification.txt
                 """
             }
         }
@@ -128,32 +125,33 @@ pipeline {
     post {
         always {
             echo '📊 Pipeline execution completed'
-            // Archive build artifacts
+            // Archive important files
             archiveArtifacts artifacts: 'build-info.txt,test-results.txt,*.html,*.css,*.js', fingerprint: true
+            
+            // Print final directory structure
+            sh 'echo "Final workspace structure:" && find . -type f -name "*.html" -o -name "*.css" -o -name "*.js" -o -name "*.txt"'
         }
         success {
             echo '🎉 Pipeline SUCCESS!'
-            bat 'echo "BUILD SUCCESS - ${BUILD_URL}" > build-status.txt'
-            
-            // Create success flag di deploy directory
-            bat """
-                echo "🎊 CI/CD DEPLOYMENT SUCCESSFUL" > ${DEPLOY_DIR}\\SUCCESS.txt
-                echo "Repository: Proyek_bnsp1" >> ${DEPLOY_DIR}\\SUCCESS.txt
-                echo "Build Number: ${BUILD_NUMBER}" >> ${DEPLOY_DIR}\\SUCCESS.txt  
-                echo "Deployment Time: %DATE% %TIME%" >> ${DEPLOY_DIR}\\SUCCESS.txt
-                echo "Deployed to: ${DEPLOY_DIR}" >> ${DEPLOY_DIR}\\SUCCESS.txt
+            sh """
+                echo "BUILD SUCCESS - ${BUILD_URL}" > build-status.txt
+                echo "🎊 CI/CD DEPLOYMENT SUCCESSFUL" > ${DEPLOY_DIR}/SUCCESS.txt
+                echo "Repository: Proyek_bnsp1" >> ${DEPLOY_DIR}/SUCCESS.txt
+                echo "Build Number: ${BUILD_NUMBER}" >> ${DEPLOY_DIR}/SUCCESS.txt
+                echo "Deployment Time: $(date)" >> ${DEPLOY_DIR}/SUCCESS.txt
+                echo "Deployed to: ${DEPLOY_DIR}" >> ${DEPLOY_DIR}/SUCCESS.txt
             """
             
             // Print success message
-            bat 'echo "=================================="'
-            bat 'echo "🚀 CI/CD PIPELINE BERHASIL!"'
-            bat 'echo "📁 Aplikasi deployed ke: ${DEPLOY_DIR}"'
-            bat 'echo "🔗 Buka index.html di browser"'
-            bat 'echo "=================================="'
+            sh 'echo "=================================="'
+            sh 'echo "🚀 CI/CD PIPELINE BERHASIL!"'
+            sh 'echo "📁 Aplikasi deployed ke Jenkins container"'
+            sh 'echo "📊 Check Jenkins workspace untuk hasil"'
+            sh 'echo "=================================="'
         }
         failure {
             echo '❌ Pipeline FAILED!'
-            bat 'echo "BUILD FAILED - Check Jenkins logs" > build-status.txt'
+            sh 'echo "BUILD FAILED - Check Jenkins logs" > build-status.txt'
         }
     }
 }
