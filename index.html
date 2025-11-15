@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi CI/CD Test</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Aplikasi Web CI/CD</h1>
+            <p>Deployed via Jenkins Pipeline</p>
+        </header>
+        
+        <main>
+            <div class="card">
+                <h2>Status Build</h2>
+                <div id="build-status">Loading...</div>
+                <button onclick="checkStatus()">Cek Status</button>
+            </div>
+            
+            <div class="card">
+                <h2>Informasi</h2>
+                <ul>
+                    <li>✅ Build Automation</li>
+                    <li>✅ Test Automation</li>
+                    <li>✅ Deployment Automation</li>
+                    <li>📅 Last Deploy: <span id="deploy-time"></span></li>
+                </ul>
+            </div>
+        </main>
+        
+        <footer>
+            <p>MUK 2 - CI/CD Pipeline Setup</p>
+        </footer>
+    </div>
+
+    <script src="test.js"></script>
+</body>
+</html>
