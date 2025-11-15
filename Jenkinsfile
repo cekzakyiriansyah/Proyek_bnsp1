@@ -3,7 +3,6 @@ pipeline {
     
     environment {
         PROJECT_NAME = 'Proyek_bnsp1'
-        // Path di Linux container (bukan Windows)
         DEPLOY_DIR = '/var/jenkins_home/deployed-app'
         BUILD_INFO = 'build-info.txt'
     }
@@ -12,9 +11,6 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo '🔍 Checking out source code from GitHub...'
-                // Git checkout sudah otomatis oleh SCM
-                
-                // Print working directory dan list files
                 sh 'echo "Current directory: $(pwd)"'
                 sh 'ls -la'
             }
@@ -23,14 +19,13 @@ pipeline {
         stage('Build') {
             steps {
                 echo '🏗️ Building application...'
-                sh """
-                    echo "Building ${PROJECT_NAME}..."
+                sh '''
+                    echo "Building Proyek_bnsp1..."
                     echo "Build started at: $(date)"
                     echo "Files in repository:"
                     ls -la
-                """
+                '''
                 
-                // Create build info file
                 sh """
                     echo "Build Number: ${BUILD_NUMBER}" > ${BUILD_INFO}
                     echo "Build Date: $(date)" >> ${BUILD_INFO}
@@ -45,7 +40,7 @@ pipeline {
             steps {
                 echo '🧪 Running validation tests...'
                 
-                sh """
+                sh '''
                     echo "Checking required files..."
                     
                     if [ -f "index.html" ]; then
@@ -66,10 +61,11 @@ pipeline {
                         echo "✅ test.js found"
                     else
                         echo "⚠️ test.js not found (optional)"
+                    exit 0
                     fi
                     
                     echo "All file checks completed" > test-results.txt
-                """
+                '''
             }
         }
         
@@ -77,13 +73,11 @@ pipeline {
             steps {
                 echo '🚀 Deploying application...'
                 
-                // Create deploy directory
                 sh """
                     mkdir -p ${DEPLOY_DIR}
                     echo "Deployment directory created: ${DEPLOY_DIR}"
                 """
                 
-                // Copy files ke deploy directory
                 sh """
                     echo "Copying files to deployment directory..."
                     cp -r *.html *.css *.js *.txt ${DEPLOY_DIR}/ 2>/dev/null || true
@@ -125,11 +119,12 @@ pipeline {
     post {
         always {
             echo '📊 Pipeline execution completed'
-            // Archive important files
             archiveArtifacts artifacts: 'build-info.txt,test-results.txt,*.html,*.css,*.js', fingerprint: true
             
-            // Print final directory structure
-            sh 'echo "Final workspace structure:" && find . -type f -name "*.html" -o -name "*.css" -o -name "*.js" -o -name "*.txt"'
+            sh '''
+                echo "Final workspace structure:"
+                find . -type f -name "*.html" -o -name "*.css" -o -name "*.js" -o -name "*.txt"
+            '''
         }
         success {
             echo '🎉 Pipeline SUCCESS!'
@@ -142,12 +137,13 @@ pipeline {
                 echo "Deployed to: ${DEPLOY_DIR}" >> ${DEPLOY_DIR}/SUCCESS.txt
             """
             
-            // Print success message
-            sh 'echo "=================================="'
-            sh 'echo "🚀 CI/CD PIPELINE BERHASIL!"'
-            sh 'echo "📁 Aplikasi deployed ke Jenkins container"'
-            sh 'echo "📊 Check Jenkins workspace untuk hasil"'
-            sh 'echo "=================================="'
+            sh '''
+                echo "=================================="
+                echo "🚀 CI/CD PIPELINE BERHASIL!"
+                echo "📁 Aplikasi deployed ke Jenkins container"
+                echo "📊 Check Jenkins workspace untuk hasil"
+                echo "=================================="
+            '''
         }
         failure {
             echo '❌ Pipeline FAILED!'
